@@ -1,11 +1,11 @@
 """Implements the hashids algorithm in python. For more information, visit
 http://www.hashids.org/. Compatible with Python 2.6, 2.7 and 3"""
 
-__version__ = '1.0.3'
-
 import warnings
 from functools import wraps
 from math import ceil
+
+__version__ = '1.1.0'
 
 RATIO_SEPARATORS = 3.5
 RATIO_GUARDS = 12
@@ -157,14 +157,18 @@ def _decode(hashid, salt, alphabet, separators, guards):
         alphabet = _reorder(alphabet, alphabet_salt)
         yield _unhash(part, alphabet)
 
-def _deprecated(f):
-    @wraps(f)
+
+def _deprecated(func):
+    """A decorator that warns about deprecation when the passed-in function is
+    invoked."""
+    @wraps(func)
     def with_warning(*args, **kwargs):
         warnings.warn(
-            'The %s method is deprecated and will be removed in v2.*.*' % f.__name__,
+            ('The %s method is deprecated and will be removed in v2.*.*' %
+             func.__name__),
             DeprecationWarning
         )
-        return f(*args, **kwargs)
+        return func(*args, **kwargs)
     return with_warning
 
 
@@ -254,3 +258,28 @@ class Hashids(object):
             return numbers if hashid == self.encode(*numbers) else ()
         except ValueError:
             return ()
+
+    def encode_hex(self, hex_str):
+        """Converts a hexadecimal string (e.g. a MongoDB id) to a hashid.
+
+        :param hex_str The hexadecimal string to encodes
+
+        >>> Hashids.encode_hex('507f1f77bcf86cd799439011')
+        'y42LW46J9luq3Xq9XMly'
+        """
+        numbers = (int('1' + hex_str[i:i+12], 16)
+                   for i in range(0, len(hex_str), 12))
+        try:
+            return self.encode(*numbers)
+        except ValueError:
+            return ''
+
+    def decode_hex(self, hashid):
+        """Restores a hexadecimal string (e.g. a MongoDB id) from a hashid.
+
+        :param hashid The hashid to decode
+
+        >>> Hashids.decode_hex('y42LW46J9luq3Xq9XMly')
+        '507f1f77bcf86cd799439011'
+        """
+        return ''.join(('%x' % x)[1:] for x in self.decode(hashid))
